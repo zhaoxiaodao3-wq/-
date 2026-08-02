@@ -15,6 +15,7 @@ import { statsRouter } from './routes/stats.js';
 import { backupRouter } from './routes/backup.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const FRONTEND_DIST = path.join(__dirname, '..', 'public');
 const app = express();
 const PORT = process.env.PORT || 4000;
 
@@ -41,6 +42,13 @@ api.use('/backup', backupRouter);
 app.use('/api', api);
 
 app.get('/health', (req, res) => res.json({ ok: true, time: Date.now() }));
+
+// 生产环境：同时服务前端 SPA 静态文件
+app.use(express.static(FRONTEND_DIST));
+app.get('*', (req, res) => {
+  if (req.path.startsWith('/api/')) return; // API 返回 404
+  res.sendFile(path.join(FRONTEND_DIST, 'index.html'));
+});
 
 app.use((err, req, res, next) => {
   console.error('[ERROR]', err.message);
