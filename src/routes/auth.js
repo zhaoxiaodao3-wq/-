@@ -1,7 +1,7 @@
 // 登录 / 当前用户
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
-import { signToken } from '../middleware/auth.js';
+import { signToken, authGuard } from '../middleware/auth.js';
 import { getOptions } from '../db.js';
 
 const router = Router();
@@ -28,8 +28,7 @@ router.post('/login', (req, res) => {
   res.json({ token, username });
 });
 
-router.get('/me', (req, res) => {
-  // 由 authGuard 保护
+router.get('/me', authGuard, (req, res) => {
   res.json({ username: req.user.username, role: req.user.role });
 });
 

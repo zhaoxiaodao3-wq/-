@@ -1,0 +1,14 @@
+services:
+  sell-server:
+    build: .
+    image: sell-server:latest
+    container_name: sell-server
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    env_file:
+      - .env
+    volumes:
+      # 业务数据（JSON 库）与上传图片持久化到宿主机，容器重建不丢数据
+      - ./data:/app/data
+      - ./uploads:/app/uploads

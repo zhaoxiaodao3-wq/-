@@ -1,0 +1,12 @@
+# 不进镜像的内容
+node_modules
+.git
+.workbuddy
+.env
+*.log
+uploads/*
+!uploads/.gitkeep
+data
+Dockerfile
+.dockerignore
+docker-compose.yml
