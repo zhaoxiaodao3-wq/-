@@ -86,8 +86,8 @@ LOG=/tmp/deploy_$(date +%Y%m%d_%H%M%S).log
 exec > >(tee -a "$LOG") 2>&1
 echo "===== DEPLOY $(date) ====="
 
-BDIR=%s
-FDIR=%s
+BDIR=__B__
+FDIR=__F__
 TS=$(date +%Y%m%d_%H%M%S)
 
 extract() {
@@ -159,7 +159,8 @@ echo "===== [5/5] 部署完成 ====="
 echo "日志: $LOG"
 echo "回滚数据: cp -r /tmp/sell-server-data.bak.$TS/. $BDIR/data/ && cd $BDIR && docker compose restart"
 echo "回滚前端: cp -r /tmp/web.mia-fly.cn.bak.$TS/. $FDIR/"
-""" % (SERVER_BACKEND_DIR, SERVER_FRONTEND_DIR)
+"""
+REMOTE_SCRIPT = REMOTE_SCRIPT.replace("__B__", SERVER_BACKEND_DIR).replace("__F__", SERVER_FRONTEND_DIR)
 
 
 # ---------------- 工具函数 ----------------
@@ -193,7 +194,7 @@ def main():
     if os.path.isfile(os.path.join(FRONTEND_DIR, "package.json")):
         print("\n[1/4] 构建前端 (VITE_API_BASE=%s) ..." % VITE_API_BASE)
         env = dict(os.environ, VITE_API_BASE=VITE_API_BASE)
-        run(["npm", "run", "build"], cwd=FRONTEND_DIR)
+        run("npm run build", cwd=FRONTEND_DIR)
         dist_dir = os.path.join(FRONTEND_DIR, "dist")
         if not os.path.isdir(dist_dir):
             sys.exit("前端构建未生成 dist 目录: %s" % dist_dir)
@@ -224,7 +225,7 @@ def main():
     # 4) 提权执行
     print("\n[4/4] 执行远端安全部署（sudo）...")
     esc = DEPLOY_PW.replace("'", "'\\''")
-    remote_cmd = "printf '%s\\n' '%s' | sudo -S bash /tmp/deploy.sh" % (esc,)
+    remote_cmd = f"printf '{esc}\\n' | sudo -S bash /tmp/deploy.sh"
     transport = c.get_transport()
     chan = transport.open_session()
     chan.exec_command(remote_cmd)
