@@ -6,19 +6,41 @@ import { round2, num, payableStatusOf } from '../utils/calc.js';
 const router = Router();
 const COLL = 'payables';
 
+// 规范化单个应付子项：汇总 货品/材料/人工/物流/其他 支出 => 单项金额
+function normalizeSubItem(it = {}) {
+  const goods = round2(num(it.goodsExpense));
+  const material = round2(num(it.materialExpense));
+  const labor = round2(num(it.laborExpense));
+  const logistics = round2(num(it.logisticsExpense));
+  const other = round2(num(it.otherExpense));
+  const amount = round2(goods + material + labor + logistics + other);
+  return {
+    id: it.id || `si_${Math.random().toString(36).slice(2, 8)}`,
+    name: (it.product || it.name || '').trim(),
+    product: (it.product || '').trim(),
+    productQty: round2(num(it.productQty ?? it.qty)),
+    productPrice: round2(num(it.productPrice ?? it.price)),
+    supplier: (it.supplier || '').trim(),
+    goodsExpense: goods,
+    materialExpense: material,
+    laborExpense: labor,
+    logisticsExpense: logistics,
+    otherExpense: other,
+    amount,
+  };
+}
+
 function normalize(v) {
   const ts = now();
-  const subItems = (v.subItems || []).map((it) => ({
-    id: it.id || `si_${Math.random().toString(36).slice(2, 8)}`,
-    name: (it.name || '').trim(),
-    amount: round2(num(it.amount)),
-  }));
-  const totalAmount = v.isManualTotal ? round2(num(v.totalAmount)) : round2(subItems.reduce((s, it) => s + it.amount, 0));
+  const subItems = (v.subItems || []).map(normalizeSubItem);
+  const totalAmount = v.isManualTotal
+    ? round2(num(v.totalAmount))
+    : round2(subItems.reduce((s, it) => s + it.amount, 0));
   return {
     id: uid('pay'),
     date: v.date,
     belongType: v.belongType,
-    supplier: (v.supplier || '').trim(),
+    supplier: (v.supplier || (subItems[0] && subItems[0].supplier) || '').trim(),
     subItems,
     totalAmount,
     isManualTotal: !!v.isManualTotal,
@@ -27,6 +49,7 @@ function normalize(v) {
     remark: v.remark || '',
     orderId: v.belongType === '订单支出' ? v.orderId : undefined,
     month: v.belongType === '月度支出' ? v.month : undefined,
+    orderExpense: v.orderExpense || null,
     createdAt: ts,
     updatedAt: ts,
   };
@@ -61,14 +84,10 @@ router.put('/:id', (req, res) => {
   if (!existing) return res.status(404).json({ error: '应付款不存在' });
   const v = req.body || {};
   const patch = {};
-  ['date', 'belongType', 'supplier', 'remark', 'isManualTotal', 'subItems'].forEach((k) => { if (k in v) patch[k] = v[k]; });
+  ['date', 'belongType', 'supplier', 'remark', 'isManualTotal', 'subItems', 'orderExpense'].forEach((k) => { if (k in v) patch[k] = v[k]; });
   if ('supplier' in patch) patch.supplier = (patch.supplier || '').trim();
   if ('subItems' in patch) {
-    patch.subItems = (v.subItems || []).map((it) => ({
-      id: it.id || `si_${Math.random().toString(36).slice(2, 8)}`,
-      name: (it.name || '').trim(),
-      amount: round2(num(it.amount)),
-    }));
+    patch.subItems = (v.subItems || []).map(normalizeSubItem);
   }
   if ('isManualTotal' in patch) patch.isManualTotal = !!patch.isManualTotal;
   // 总额：手动则取传入，否则按子事项汇总

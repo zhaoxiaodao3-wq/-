@@ -12,6 +12,7 @@ import { payableRouter } from './routes/payables.js';
 import { optionRouter } from './routes/options.js';
 import { imageRouter } from './routes/images.js';
 import { statsRouter } from './routes/stats.js';
+import { summaryRouter } from './routes/summary.js';
 import { backupRouter } from './routes/backup.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -38,6 +39,7 @@ api.use('/expenses', expenseRouter);
 api.use('/payables', payableRouter);
 api.use('/options', optionRouter);
 api.use('/stats', statsRouter);
+api.use('/summary', summaryRouter);
 api.use('/backup', backupRouter);
 app.use('/api', api);
 

@@ -6,6 +6,19 @@ import { round2, num } from '../utils/calc.js';
 const router = Router();
 const COLL = 'orders';
 
+// 规范化单个销售子项：数量×单价 => 单项金额
+function normalizeItem(it = {}) {
+  const qty = num(it.qty);
+  const price = round2(num(it.price));
+  return {
+    product: (it.product || '').trim(),
+    qty,
+    price,
+    amount: round2(qty * price),
+  };
+}
+
+
 function serialize(o) {
   return o;
 }
@@ -40,7 +53,10 @@ router.get('/:id', (req, res) => {
 router.post('/', (req, res) => {
   const v = req.body || {};
   const ts = now();
-  const totalAmount = v.isManualTotal ? round2(num(v.totalAmount)) : round2(num(v.qty) * num(v.price));
+  const items = Array.isArray(v.items) ? v.items.map(normalizeItem) : [];
+  const totalAmount = v.isManualTotal
+    ? round2(num(v.totalAmount))
+    : round2(items.reduce((s, it) => s + it.amount, 0));
   const item = {
     id: uid('ord'),
     date: v.date,
@@ -50,8 +66,10 @@ router.post('/', (req, res) => {
     channel: v.channel,
     qty: num(v.qty),
     price: round2(num(v.price)),
+    items,
     totalAmount,
     isManualTotal: !!v.isManualTotal,
+    customerPaid: round2(num(v.customerPaid)),
     payMethod: v.payMethod,
     remark: v.remark || '',
     imageKey: v.imageKey || null,
@@ -67,16 +85,22 @@ router.put('/:id', (req, res) => {
   if (!existing) return res.status(404).json({ error: '订单不存在' });
   const v = req.body || {};
   const patch = {};
-  ['date', 'type', 'title', 'customerName', 'channel', 'qty', 'price', 'payMethod', 'remark', 'imageKey', 'isManualTotal'].forEach((k) => {
+  ['date', 'type', 'title', 'customerName', 'channel', 'qty', 'price', 'payMethod', 'remark', 'imageKey', 'isManualTotal', 'customerPaid'].forEach((k) => {
     if (k in v) patch[k] = v[k];
   });
+  if ('customerPaid' in patch) patch.customerPaid = round2(num(patch.customerPaid));
   if ('title' in patch) patch.title = (patch.title || '').trim();
   if ('customerName' in patch) patch.customerName = (patch.customerName || '').trim();
   if (patch.qty !== undefined) patch.qty = num(patch.qty);
   if (patch.price !== undefined) patch.price = round2(num(patch.price));
   if ('isManualTotal' in patch) patch.isManualTotal = !!patch.isManualTotal;
-  if ('totalAmount' in v && patch.isManualTotal) patch.totalAmount = round2(num(v.totalAmount));
-  else if (patch.qty !== undefined || patch.price !== undefined) {
+  // 子项（若有则按子项汇总，否则退回 数量×单价）
+  if (Array.isArray(v.items)) {
+    patch.items = v.items.map(normalizeItem);
+    patch.totalAmount = round2(patch.items.reduce((s, it) => s + it.amount, 0));
+  } else if ('totalAmount' in v && patch.isManualTotal) {
+    patch.totalAmount = round2(num(v.totalAmount));
+  } else if (patch.qty !== undefined || patch.price !== undefined) {
     const qty = patch.qty ?? existing.qty;
     const price = patch.price ?? existing.price;
     patch.totalAmount = round2(num(qty) * num(price));
