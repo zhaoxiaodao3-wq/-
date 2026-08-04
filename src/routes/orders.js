@@ -6,15 +6,26 @@ import { round2, num } from '../utils/calc.js';
 const router = Router();
 const COLL = 'orders';
 
-// 规范化单个销售子项：数量×单价 => 单项金额
+// 规范化单个销售子项：保留全部供应商/应付款字段
 function normalizeItem(it = {}) {
   const qty = num(it.qty);
   const price = round2(num(it.price));
+  const amount = round2(num(it.amount)) || round2(qty * price);
   return {
     product: (it.product || '').trim(),
     qty,
     price,
-    amount: round2(qty * price),
+    amount,
+    supplier: (it.supplier || '').trim(),
+    goodsExpense: round2(num(it.goodsExpense)),
+    materialSupplier: (it.materialSupplier || '').trim(),
+    materialExpense: round2(num(it.materialExpense)),
+    worker: (it.worker || '').trim(),
+    laborExpense: round2(num(it.laborExpense)),
+    logisticsProvider: (it.logisticsProvider || '').trim(),
+    logisticsExpense: round2(num(it.logisticsExpense)),
+    otherPayment: (it.otherPayment || '').trim(),
+    otherExpense: round2(num(it.otherExpense)),
   };
 }
 

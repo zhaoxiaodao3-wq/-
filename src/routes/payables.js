@@ -6,7 +6,7 @@ import { round2, num, payableStatusOf } from '../utils/calc.js';
 const router = Router();
 const COLL = 'payables';
 
-// 规范化单个应付子项：汇总 货品/材料/人工/物流/其他 支出 => 单项金额
+// 规范化单个应付子项：保留全部供应商信息 + 汇总各类型应付款 => 单项金额
 function normalizeSubItem(it = {}) {
   const goods = round2(num(it.goodsExpense));
   const material = round2(num(it.materialExpense));
@@ -22,9 +22,13 @@ function normalizeSubItem(it = {}) {
     productPrice: round2(num(it.productPrice ?? it.price)),
     supplier: (it.supplier || '').trim(),
     goodsExpense: goods,
+    materialSupplier: (it.materialSupplier || '').trim(),
     materialExpense: material,
+    worker: (it.worker || '').trim(),
     laborExpense: labor,
+    logisticsProvider: (it.logisticsProvider || '').trim(),
     logisticsExpense: logistics,
+    otherPayment: (it.otherPayment || '').trim(),
     otherExpense: other,
     amount,
   };
